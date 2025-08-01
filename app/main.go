@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -18,8 +19,13 @@ func main() {
 		if command == "exit 0\n" {
 			os.Exit(0)
 		} else {
-			fmt.Println(command[:len(command)-1] + ": command not found")
+			subcommands := strings.Split(command, " ")
+			switch subcommands[0] {
+			case "echo":
+				fmt.Printf("%s", strings.Join(subcommands[1:], " "))
+			default:
+				fmt.Println(command[:len(command)-1] + ": command not found")
+			}
 		}
 	}
-
 }
