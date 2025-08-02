@@ -61,7 +61,7 @@ func main() {
 				if commandDescription != "" {
 					fmt.Printf("%s %s\n", subcommandName, commandDescription)
 				} else {
-					fmt.Printf("%s: command not found\n", subcommandName)
+					fmt.Printf("%s: not found\n", subcommandName)
 				}
 			default:
 				fmt.Println(command[:len(command)-1] + ": command not found")
