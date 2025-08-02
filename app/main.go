@@ -37,10 +37,6 @@ func main() {
 		}
 
 		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
 		parts := strings.Fields(line) 
 		command := parts[0]
 		args := parts[1:]
@@ -51,7 +47,6 @@ func main() {
 		switch command {
 		case "echo":
 			fmt.Println(strings.Join(args, " "))
-
 		case "type":
 			if len(args) > 0 {
 				target := args[0]
@@ -68,7 +63,6 @@ func main() {
 			} else {
 				fmt.Println("type: not enough arguments")
 			}
-
 		default:
 			filePath := findExecutable(command, paths)
 			if filePath != "" {
