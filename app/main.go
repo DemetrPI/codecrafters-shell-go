@@ -4,40 +4,17 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
-type command struct {
-	name        string
-	description string
-}
-type commands []command
 
-var cmds = commands{
-	
-		{
-			name:        "echo",
-			description: "is a shell builtin",
-		},
-		{
-			name:        "type",
-			description: "is a shell builtin",
-		},
-		{
-			name:        "exit",
-			description: "is a shell builtin",
-		},
-	
+var cmdsMap = map[string]string{
+	"echo": "a shell builtin",
+	"type": "a shell builtin",
+	"exit": "a shell builtin",
 }
 
-func getCommandDescription(name string) string {
-	for _, cmd := range cmds {
-		if cmd.name == name {
-			return cmd.description
-		}
-	}
-	return ""
-}
 
 func main() {
 
@@ -57,9 +34,10 @@ func main() {
 				fmt.Printf("%s", strings.Join(subcommands[1:], " "))
 			case "type":
 				subcommandName := strings.TrimSpace(subcommands[1])
-				commandDescription := getCommandDescription(subcommandName)
-				if commandDescription != "" {
-					fmt.Printf("%s %s\n", subcommandName, commandDescription)
+				if desc, ok := cmdsMap[subcommandName]; ok {
+					fmt.Printf("%s is %s\n", subcommandName, desc)
+				} else if path, err := exec.LookPath(subcommandName); err == nil {
+					fmt.Printf("%s is %s\n", subcommandName, path)
 				} else {
 					fmt.Printf("%s: not found\n", subcommandName)
 				}
