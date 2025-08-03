@@ -5,30 +5,36 @@ import (
 	"path/filepath"
 	"strings"
 )
-// parses user input 
+
+// parses user input
 func parseArgs(input string) []string {
 	var (
-		args      []string
-		current   strings.Builder
-		quoteChar rune
+		args    []string
+		current strings.Builder
+		inSQuote, inDQuote, escaped bool
 	)
 
 	for _, char := range input {
 		switch {
-		case (char == '\'' || char == '"'):
-			switch quoteChar {
-			case 0:
-				quoteChar = char
-			case char:
-				quoteChar = 0
-			default:
-				current.WriteRune(char)
-			}
-		case char == ' ' && quoteChar == 0:
+		case escaped:
+			current.WriteRune(char)
+			escaped = false
+
+		case char == '\\' && !inSQuote && !inDQuote:
+			escaped = true
+
+		case char == '\'' && !inDQuote:
+			inSQuote = !inSQuote
+
+		case char == '"' && !inSQuote:
+			inDQuote = !inDQuote
+
+		case char == ' ' && !inSQuote && !inDQuote:
 			if current.Len() > 0 {
 				args = append(args, current.String())
 				current.Reset()
 			}
+
 		default:
 			current.WriteRune(char)
 		}
@@ -39,6 +45,7 @@ func parseArgs(input string) []string {
 	}
 	return args
 }
+
 
 // checks for executable command
 func findExecutable(command string, paths []string) string {
