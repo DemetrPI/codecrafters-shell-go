@@ -6,9 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
+// maps command names and description
 var cmdsMap = map[string]string{
 	"echo": "a shell builtin",
 	"type": "a shell builtin",
@@ -17,6 +19,7 @@ var cmdsMap = map[string]string{
 	"cd":   "a shell builtin",
 }
 
+// checks for executable command
 func findExecutable(command string, paths []string) string {
 	for _, path := range paths {
 		fullPath := filepath.Join(path, command)
@@ -28,6 +31,22 @@ func findExecutable(command string, paths []string) string {
 	return ""
 }
 
+// removes all single quotes from inside the string
+func removeQuotes(s string) string {
+	return strings.ReplaceAll(s, "'", "")
+}
+
+// splits the line into args, preserving quotes
+func splitArgs(line string) []string {
+	re := regexp.MustCompile(`(?:'[^']*')+|\S+`)
+	parts := re.FindAllString(line, -1)
+	var args []string
+	for _, part := range parts {
+		args = append(args, removeQuotes(part))
+	}
+	return args
+}
+
 func main() {
 	for {
 		paths := strings.Split(os.Getenv("PATH"), ":")
@@ -37,15 +56,18 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			os.Exit(1)
 		}
-
 		line = strings.TrimSpace(line)
-		parts := strings.Fields(line)
-		command := parts[0]
-		args := parts[1:]
+		if line == "" {
+			continue
+		}
+
+		args := splitArgs(line)
+		command := args[0]
+		args = args[1:]
+
 		if command == "exit" && len(args) > 0 && args[0] == "0" {
 			os.Exit(0)
 		}
-
 		switch command {
 		case "echo":
 			fmt.Println(strings.Join(args, " "))
