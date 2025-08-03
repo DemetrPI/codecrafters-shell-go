@@ -31,14 +31,16 @@ func findExecutable(command string, paths []string) string {
 	return ""
 }
 
-// removes all single quotes from inside the string
+// removes all quotes from the string
 func removeQuotes(s string) string {
-	return strings.ReplaceAll(s, "'", "")
+	s = strings.ReplaceAll(s, `"`, "")
+	s = strings.ReplaceAll(s, "'", "")
+	return s
 }
 
 // splits the line into args, preserving quotes
 func splitArgs(line string) []string {
-	re := regexp.MustCompile(`(?:'[^']*')+|\S+`)
+	re := regexp.MustCompile(`(?:"[^"]*"|'[^']*')+|\S+`)
 	parts := re.FindAllString(line, -1)
 	var args []string
 	for _, part := range parts {
