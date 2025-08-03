@@ -4,60 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
-	"unicode"
 )
-
-func readFromStdin() ([]string, error) {
-	input, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		return []string{}, fmt.Errorf("error reading from stdin: %v", err)
-	}
-
-	withoutDelim := input[:len(input)-1]
-
-	return strings.Split(withoutDelim, " "), nil
-}
-
-func parseArgs(args []string) []string {
-	// 1) join input so quotes spanning elements still work
-	input := strings.Join(args, " ")
-
-	var (
-		tokens    []string
-		sb        strings.Builder
-		quoteChar rune // 0 = no quote, '\'' or '"'
-	)
-
-	for _, r := range input {
-		switch {
-		// 2a) opening or closing a quote
-		case (r == '\'' || r == '"') && quoteChar == 0:
-			// enter that quote
-			quoteChar = r
-
-		case r == quoteChar:
-			quoteChar = 0
-
-		case unicode.IsSpace(r) && quoteChar == 0:
-			if sb.Len() > 0 {
-				tokens = append(tokens, sb.String())
-				sb.Reset()
-			}
-
-		default:
-			sb.WriteRune(r)
-		}
-	}
-
-	if sb.Len() > 0 {
-		tokens = append(tokens, sb.String())
-	}
-
-	return tokens
-}
 
 // maps command names and description
 var cmdsMap = map[string]string{
@@ -68,90 +16,35 @@ var cmdsMap = map[string]string{
 	"cd":   "a shell builtin",
 }
 
-// checks for executable command
-func findExecutable(command string, paths []string) string {
-	for _, path := range paths {
-		fullPath := filepath.Join(path, command)
-		fileInfo, err := os.Stat(fullPath)
-		if err == nil && fileInfo.Mode().Perm()&0111 != 0 {
-			return fullPath
-		}
-	}
-	return ""
-}
-
 func main() {
 	for {
-		paths := strings.Split(os.Getenv("PATH"), ":")
+
 		fmt.Fprint(os.Stdout, "$ ")
-		line, err := readFromStdin()
+
+		input, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		input = strings.TrimSpace(input)
 
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			os.Exit(1)
 		}
 
-		command := line[0]
-		args := line[1:]
-		parseArgs := parseArgs(args)
-
-		if command == "exit" && len(args) > 0 && args[0] == "0" {
+		args := parseArgs(input)
+		if args[0] == "exit" && len(args) > 0 && args[1] == "0" {
 			os.Exit(0)
 		}
-		switch command {
+
+		switch args[0] {
 		case "echo":
-			fmt.Println(strings.Join(parseArgs, " "))
+			echo(args)
 		case "pwd":
-			dir, err := os.Getwd()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
-			} else {
-				fmt.Println(dir)
-			}
+			pwd()
 		case "cd":
-			if len(args) == 0 {
-				fmt.Println("cd: not enough arguments")
-			}
-			target := args[0]
-			if target == "~" {
-				target, err = os.UserHomeDir()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
-				}
-			}
-			if err := os.Chdir(target); err != nil {
-				fmt.Printf("cd: %v: No such file or directory\n", target)
-			}
+			cd(args)
 		case "type":
-			if len(args) > 0 {
-				target := args[0]
-				if decs, ok := cmdsMap[target]; ok {
-					fmt.Printf("%s is %s\n", target, decs)
-				} else {
-					filePath := findExecutable(target, paths)
-					if filePath != "" {
-						fmt.Printf("%s is %s\n", target, filePath)
-					} else {
-						fmt.Printf("%s: not found\n", target)
-					}
-				}
-			} else {
-				fmt.Println("type: not enough arguments")
-			}
+			type_(args)
 		default:
-			filePath := findExecutable(command, paths)
-			if filePath != "" {
-				cmd := exec.Command(command, args...)
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				cmd.Stdin = os.Stdin
-				err := cmd.Run()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
-				}
-			} else {
-				fmt.Println(command + ": command not found")
-			}
+			default_(args)
 		}
 	}
 }
