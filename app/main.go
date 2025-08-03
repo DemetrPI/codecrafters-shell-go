@@ -6,9 +6,58 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
+	"unicode"
 )
+
+func readFromStdin() ([]string, error) {
+	input, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return []string{}, fmt.Errorf("error reading from stdin: %v", err)
+	}
+
+	withoutDelim := input[:len(input)-1]
+
+	return strings.Split(withoutDelim, " "), nil
+}
+
+func parseArgs(args []string) []string {
+	// 1) join input so quotes spanning elements still work
+	input := strings.Join(args, " ")
+
+	var (
+		tokens    []string
+		sb        strings.Builder
+		quoteChar rune // 0 = no quote, '\'' or '"'
+	)
+
+	for _, r := range input {
+		switch {
+		// 2a) opening or closing a quote
+		case (r == '\'' || r == '"') && quoteChar == 0:
+			// enter that quote
+			quoteChar = r
+
+		case r == quoteChar:
+			quoteChar = 0
+
+		case unicode.IsSpace(r) && quoteChar == 0:
+			if sb.Len() > 0 {
+				tokens = append(tokens, sb.String())
+				sb.Reset()
+			}
+
+		default:
+			sb.WriteRune(r)
+		}
+	}
+
+	if sb.Len() > 0 {
+		tokens = append(tokens, sb.String())
+	}
+
+	return tokens
+}
 
 // maps command names and description
 var cmdsMap = map[string]string{
@@ -31,48 +80,27 @@ func findExecutable(command string, paths []string) string {
 	return ""
 }
 
-// removes all quotes from the string
-func removeQuotes(s string) string {
-	s = strings.ReplaceAll(s, `"`, "")
-	s = strings.ReplaceAll(s, "'", "")
-	return s
-}
-
-// splits the line into args, preserving quotes
-func splitArgs(line string) []string {
-	re := regexp.MustCompile(`(?:"[^"]*"|'[^']*')+|\S+`)
-	parts := re.FindAllString(line, -1)
-	var args []string
-	for _, part := range parts {
-		args = append(args, removeQuotes(part))
-	}
-	return args
-}
-
 func main() {
 	for {
 		paths := strings.Split(os.Getenv("PATH"), ":")
 		fmt.Fprint(os.Stdout, "$ ")
-		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		line, err := readFromStdin()
+
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			os.Exit(1)
 		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
 
-		args := splitArgs(line)
-		command := args[0]
-		args = args[1:]
+		command := line[0]
+		args := line[1:]
+		parseArgs := parseArgs(args)
 
 		if command == "exit" && len(args) > 0 && args[0] == "0" {
 			os.Exit(0)
 		}
 		switch command {
 		case "echo":
-			fmt.Println(strings.Join(args, " "))
+			fmt.Println(strings.Join(parseArgs, " "))
 		case "pwd":
 			dir, err := os.Getwd()
 			if err != nil {
