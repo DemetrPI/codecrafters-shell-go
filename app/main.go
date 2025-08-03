@@ -13,6 +13,7 @@ var cmdsMap = map[string]string{
 	"echo": "a shell builtin",
 	"type": "a shell builtin",
 	"exit": "a shell builtin",
+	"pwd":  "a shell builtin",
 }
 
 func findExecutable(command string, paths []string) string {
@@ -47,6 +48,13 @@ func main() {
 		switch command {
 		case "echo":
 			fmt.Println(strings.Join(args, " "))
+		case "pwd":
+			dir, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error getting current directory: %v\n", err)
+			} else {
+				fmt.Println(dir)
+			}
 		case "type":
 			if len(args) > 0 {
 				target := args[0]
