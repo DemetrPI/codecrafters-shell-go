@@ -8,42 +8,59 @@ import (
 
 // parses user input
 func parseArgs(input string) []string {
-	var (
-		args    []string
-		current strings.Builder
-		inSQuote, inDQuote, escaped bool
-	)
+    var (
+        args      []string
+        current   strings.Builder
+        quoteChar rune // Use a rune (' or ") to track active quote. 0 means none.
+        escaped   bool
+    )
 
-	for _, char := range input {
-		switch {
-		case escaped:
-			current.WriteRune(char)
-			escaped = false
+    for _, char := range input {
+        // Handle an escaped character
+        if escaped {
+            current.WriteRune(char)
+            escaped = false
+            continue
+        }
 
-		case char == '\\' && !inSQuote && !inDQuote:
-			escaped = true
+        // Set escaped flag if '\' is found outside of single quotes
+        if char == '\\' && quoteChar != '\'' {
+            escaped = true
+            continue
+        }
 
-		case char == '\'' && !inDQuote:
-			inSQuote = !inSQuote
+        // If we are inside a quoted section
+        if quoteChar != 0 {
+            if char == quoteChar {
+                quoteChar = 0 // End of quoted section
+            } else {
+                current.WriteRune(char) // Add character to the current argument
+            }
+            continue
+        }
 
-		case char == '"' && !inSQuote:
-			inDQuote = !inDQuote
+        // If we are not in a quoted section
+        switch char {
+        case '\'', '"':
+            quoteChar = char // Start of a new quoted section
+        
+        case ' ':
+            if current.Len() > 0 {
+                args = append(args, current.String())
+                current.Reset()
+            }
+        
+        default:
+            current.WriteRune(char)
+        }
+    }
 
-		case char == ' ' && !inSQuote && !inDQuote:
-			if current.Len() > 0 {
-				args = append(args, current.String())
-				current.Reset()
-			}
+    // Add the final argument to the list
+    if current.Len() > 0 {
+        args = append(args, current.String())
+    }
 
-		default:
-			current.WriteRune(char)
-		}
-	}
-
-	if current.Len() > 0 {
-		args = append(args, current.String())
-	}
-	return args
+    return args
 }
 
 
