@@ -39,7 +39,7 @@ func main() {
 		}
 
 		line = strings.TrimSpace(line)
-		parts := strings.Fields(line) 
+		parts := strings.Fields(line)
 		command := parts[0]
 		args := parts[1:]
 		if command == "exit" && len(args) > 0 && args[0] == "0" {
@@ -56,15 +56,20 @@ func main() {
 			} else {
 				fmt.Println(dir)
 			}
-			case "cd":
-				if len(args) > 0 {
-					err := os.Chdir(args[0])
-					if err != nil {
-						fmt.Printf("cd: %v: No such file or directory\n", args[0])
-					}
-				} else {
-					fmt.Println("cd: not enough arguments")
+		case "cd":
+			if len(args) == 0 {
+				fmt.Println("cd: not enough arguments")
+			}
+			target := args[0]
+			if target == "~" {
+				target, err = os.UserHomeDir()
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
 				}
+			}
+			if err := os.Chdir(target); err != nil {
+				fmt.Printf("cd: %v: No such file or directory\n", target)
+			}
 		case "type":
 			if len(args) > 0 {
 				target := args[0]
