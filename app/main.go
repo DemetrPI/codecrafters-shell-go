@@ -14,6 +14,7 @@ var cmdsMap = map[string]string{
 	"type": "a shell builtin",
 	"exit": "a shell builtin",
 	"pwd":  "a shell builtin",
+	"cd":   "a shell builtin",
 }
 
 func findExecutable(command string, paths []string) string {
@@ -55,6 +56,15 @@ func main() {
 			} else {
 				fmt.Println(dir)
 			}
+			case "cd":
+				if len(args) > 0 {
+					err := os.Chdir(args[0])
+					if err != nil {
+						fmt.Printf("cd: %v: No such file or directory\n", args[0])
+					}
+				} else {
+					fmt.Println("cd: not enough arguments")
+				}
 		case "type":
 			if len(args) > 0 {
 				target := args[0]
