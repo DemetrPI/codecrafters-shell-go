@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 )
 
 // maps command names and description
@@ -30,8 +31,26 @@ func main() {
 		}
 
 		args := parseArgs(input)
+
 		if args[0] == "exit" && len(args) > 0 && args[1] == "0" {
 			os.Exit(0)
+		}
+
+		var outputFile *os.File
+		for i, arg := range args[1:] {
+			if (arg == ">" || arg == "1>") && i+1 < len(args) {
+				if outputFile, err = os.Create(args[i+1]); err != nil {
+					fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+					continue
+				}
+				args = args[:i]
+				break
+			}
+		}
+
+		if outputFile != nil {
+			defer outputFile.Close()
+			os.Stdout = outputFile
 		}
 
 		switch args[0] {
@@ -45,6 +64,9 @@ func main() {
 			type_(args)
 		default:
 			default_(args)
+		}
+		if outputFile != nil {
+			os.Stdout = os.NewFile(uintptr(syscall.Stdout), "/dev/stdout")
 		}
 	}
 }
