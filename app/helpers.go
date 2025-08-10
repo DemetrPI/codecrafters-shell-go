@@ -6,18 +6,6 @@ import (
 	"strings"
 )
 
-// checks for executable command
-func findExecutable(command string, paths []string) string {
-	for _, path := range paths {
-		fullPath := filepath.Join(path, command)
-		fileInfo, err := os.Stat(fullPath)
-		if err == nil && fileInfo.Mode().Perm()&0111 != 0 {
-			return fullPath
-		}
-	}
-	return ""
-}
-
 func parseArgs(input string) []string {
 	var (
 		args      []string
@@ -86,4 +74,16 @@ func parseArgs(input string) []string {
 	}
 
 	return args
+}
+
+// checks for executable command
+func findExecutable(command string, paths []string) string {
+	for _, path := range paths {
+		fullPath := filepath.Join(path, command)
+		fileInfo, err := os.Stat(fullPath)
+		if err == nil && fileInfo.Mode().Perm()&0111 != 0 {
+			return fullPath
+		}
+	}
+	return ""
 }
