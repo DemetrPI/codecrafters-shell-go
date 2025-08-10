@@ -4,6 +4,7 @@
 # unless you really need them.
 debug: true
 
+
 # Use this to change the Go version used to run your code
 # on Codecrafters.
 #
