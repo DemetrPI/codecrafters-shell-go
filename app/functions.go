@@ -76,10 +76,8 @@ func default_(args []string) {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
-		err := cmd.Run()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
-		}
+		_ = cmd.Run()
+		
 	} else {
 		fmt.Println(args[0] + ": command not found")
 	}
