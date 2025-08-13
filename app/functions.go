@@ -70,15 +70,14 @@ func type_(args []string) {
 }
 
 func default_(args []string) {
-	filePath := findExecutable(args[0], path)
-	if filePath != "" {
-		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		_ = cmd.Run()
-		
-	} else {
-		fmt.Println(args[0] + ": command not found")
+	_, err := exec.LookPath(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: command not found\n", args[0])
+		return
 	}
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	_ = cmd.Run()
 }
