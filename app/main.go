@@ -64,14 +64,18 @@ func main() {
 					}
 					i++
 				}
-			case ">>", "1>>":
+			case ">>", "1>>", "2>>":
 				if i+1 < len(parsed) {
 					f, ferr := os.OpenFile(parsed[i+1], os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 					if ferr != nil {
 						fmt.Fprintf(originalStderr, "Error creating file: %v\n", ferr)
 						return
 					}
-					outputFile = f
+					if arg == ">>" || arg == "1>>" {
+						outputFile = f
+					} else {
+						errFile = f
+					}
 					i++
 				}
 			default:
