@@ -49,27 +49,30 @@ func main() {
 
 		for i := 0; i < len(parsed); i++ {
 			arg := parsed[i]
-
 			switch arg {
-			case ">", "1>":
+			case ">", "1>", "2>":
 				if i+1 < len(parsed) {
 					f, ferr := os.Create(parsed[i+1])
+					if ferr != nil {
+						fmt.Fprintf(originalStderr, "Error creating file: %v\n", ferr)
+						return
+					}
+					if arg == ">" || arg == "1>" {
+						outputFile = f
+					} else {
+						errFile = f
+					}
+					i++
+				}
+			case ">>", "1>>":
+				if i+1 < len(parsed) {
+					f, ferr := os.OpenFile(parsed[i+1], os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 					if ferr != nil {
 						fmt.Fprintf(originalStderr, "Error creating file: %v\n", ferr)
 						return
 					}
 					outputFile = f
-					i++ // skip the filename
-				}
-			case "2>":
-				if i+1 < len(parsed) {
-					f, ferr := os.Create(parsed[i+1])
-					if ferr != nil {
-						fmt.Fprintf(originalStderr, "Error creating file: %v\n", ferr)
-						return
-					}
-					errFile = f
-					i++ // skip the filename
+					i++
 				}
 			default:
 				cleanedArgs = append(cleanedArgs, arg)
