@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -84,6 +85,9 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	suggestions := make([][]rune, len(completions))
 	for i, comp := range completions {
 		suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
+	}
+	if len(suggestions) == 0 {
+		fmt.Fprint(originalStdout, "\x07")
 	}
 
 	// If there is only one completion, it's standard shell behavior
