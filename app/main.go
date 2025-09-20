@@ -1,8 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"github.com/chzyer/readline"
+	"log"
 	"os"
 	"strings"
 )
@@ -25,17 +26,29 @@ func init() {
 }
 
 func main() {
+	// populating trie
+	trie := NewTrie()
+	for cmd := range cmdsMap {
+		trie.Insert(cmd)
+	}
+	line, err := readline.NewEx(&readline.Config{
+		Prompt:       "$ ",
+		AutoComplete: trie,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for {
 		// Always print the prompt to the original stdout
 		fmt.Fprint(originalStdout, "$ ")
 
-		input, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		input = strings.TrimSpace(input)
-
+		input, err := line.Readline()
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error reading input:", err)
 			os.Exit(1)
 		}
+		input = strings.TrimSpace(input)
 
 		parsed := parseArgs(input)
 		if len(parsed) == 0 {
@@ -46,7 +59,6 @@ func main() {
 		var cleanedArgs []string
 
 		// Parse args for redirection
-
 		for i := 0; i < len(parsed); i++ {
 			arg := parsed[i]
 			switch arg {
