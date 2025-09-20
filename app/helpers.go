@@ -87,3 +87,23 @@ func findExecutable(command string, paths []string) string {
 	}
 	return ""
 }
+
+func populateTrieCustomFiles(t *Trie) {
+	pathEnv := os.Getenv("PATH")
+	paths := strings.SplitSeq(pathEnv, ":")
+	for path := range paths {
+		files, err := os.ReadDir(path)
+		if err != nil {
+			continue
+		}
+		for _, file := range files {
+			if !file.IsDir() {
+				fullPath := filepath.Join(path, file.Name())
+				info, err := os.Stat(fullPath)
+				if err == nil && info.Mode().Perm()&0111 != 0 {
+					t.Insert(file.Name())
+				}
+			}
+		}
+	}
+}

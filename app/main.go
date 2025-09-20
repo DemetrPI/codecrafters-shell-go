@@ -26,11 +26,15 @@ func init() {
 }
 
 func main() {
-	// populating trie
+	// populating trie with built-ins...
 	trie := NewTrie()
 	for cmd := range cmdsMap {
 		trie.Insert(cmd)
 	}
+
+	// ... and customs
+	populateTrieCustomFiles(trie)
+
 	line, err := readline.NewEx(&readline.Config{
 		Prompt:       "$ ",
 		AutoComplete: trie,
