@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -12,7 +13,9 @@ type Node struct {
 
 // Trie  is our actual tree that will hold all of our nodes, root node will be nil
 type Trie struct {
-	RootNode *Node
+	RootNode   *Node
+	lastPrefix string
+	tabCount   int
 }
 
 // / NewNode this will be used to initialize a new node with 26 children
@@ -51,8 +54,14 @@ func (t *Trie) findAllWords(node *Node, prefix string, words *[]string) {
 	if node.IsEndOfWord {
 		*words = append(*words, prefix)
 	}
-
-	for char, childNode := range node.Children {
+	// To ensure alphabetical order, we must iterate over the children in a sorted manner.
+	keys := make([]string, 0, len(node.Children))
+	for char := range node.Children {
+		keys = append(keys, char)
+	}
+	sort.Strings(keys)
+	for _, char := range keys {
+		childNode := node.Children[char]
 		t.findAllWords(childNode, prefix+char, words)
 	}
 }
@@ -69,7 +78,6 @@ func (t *Trie) FindCompletions(prefix string) []string {
 		}
 		current = node
 	}
-
 	var completions []string
 	t.findAllWords(current, prefix, &completions)
 	return completions
@@ -80,21 +88,32 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	lineStr := string(line[:pos])
 	lastSpace := strings.LastIndex(lineStr, " ")
 	prefix := lineStr[lastSpace+1:]
-
 	completions := t.FindCompletions(prefix)
 	suggestions := make([][]rune, len(completions))
 	for i, comp := range completions {
 		suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
-	}
-	if len(suggestions) == 0 {
+	} // No matches: just ring the bell.
+	if len(completions) == 0 {
 		fmt.Fprint(originalStdout, "\x07")
 	}
-
-	// If there is only one completion, it's standard shell behavior
-	// to append a space to indicate the command is complete.
+	// Single match: complete and add a space.
 	if len(completions) == 1 {
 		suggestions[0] = append(suggestions[0], ' ')
-	}
+		return suggestions, len(prefix)
 
-	return suggestions, len(prefix)
+	} // Multiple matches: handle multi-tab behavior.
+	if t.lastPrefix == prefix {
+		t.tabCount++
+	} else {
+		t.lastPrefix = prefix
+		t.tabCount = 1
+	}
+	if t.tabCount == 1 {
+		fmt.Fprint(originalStdout, "\a")
+		return nil, len(prefix)
+	} else {
+		fmt.Fprintf(originalStdout, "\n%s\n", strings.Join(completions, "  "))
+		fmt.Fprintf(originalStdout, "$ %s", lineStr)
+		return nil, len(prefix)
+	}
 }
