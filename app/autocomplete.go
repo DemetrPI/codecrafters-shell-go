@@ -33,7 +33,7 @@ func NewTrie() *Trie {
 	return &Trie{RootNode: root}
 }
 
-// Insert inserts a word into the trie.
+// function inserts a word into the trie.
 func (t *Trie) Insert(word string) {
 	current := t.RootNode
 	for _, r := range word {
@@ -90,30 +90,44 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	prefix := lineStr[lastSpace+1:]
 	completions := t.FindCompletions(prefix)
 	suggestions := make([][]rune, len(completions))
+
 	for i, comp := range completions {
 		suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
-	} // No matches: just ring the bell.
-	if len(completions) == 0 {
-		fmt.Fprint(originalStdout, "\x07")
 	}
-	// Single match: complete and add a space.
-	if len(completions) == 1 {
+
+	switch len(completions) {
+	case 0:
+		// No matches: ring the bell.
+		fmt.Fprint(originalStdout, "\a")
+		return nil, 0
+	case 1:
 		suggestions[0] = append(suggestions[0], ' ')
 		return suggestions, len(prefix)
+	default:
+		// Multi-match: use longest common prefix
+		commonPrefix := longestCommonPrefix(completions)
+		// If LCP is longer than current prefix, complete to LCP.
+		if len(commonPrefix) > len(prefix) {
+			t.lastPrefix = "" // Reset prefix state
+			t.tabCount = 0    // Reset tab state
+			return suggestions, len(prefix)
+		}
 
-	} // Multiple matches: handle multi-tab behavior.
-	if t.lastPrefix == prefix {
+		// Prefix is already the LCP. Handle multi-tab case.
+		if t.lastPrefix != prefix {
+			t.lastPrefix = prefix
+			t.tabCount = 0
+		}
 		t.tabCount++
-	} else {
-		t.lastPrefix = prefix
-		t.tabCount = 1
-	}
-	if t.tabCount == 1 {
-		fmt.Fprint(originalStdout, "\a")
-		return nil, len(prefix)
-	} else {
-		fmt.Fprintf(originalStdout, "\n%s\n", strings.Join(completions, "  "))
-		fmt.Fprintf(originalStdout, "$ %s", lineStr)
+
+		if t.tabCount > 1 {
+			// On second (or more) tab, show all options.
+			fmt.Fprintf(originalStdout, "\n%s\n", strings.Join(completions, "  "))
+			fmt.Fprintf(originalStdout, "$ %s", lineStr)
+		} else {
+			// On first tab, just beep.
+			fmt.Fprint(originalStdout, "\a")
+		}
 		return nil, len(prefix)
 	}
 }

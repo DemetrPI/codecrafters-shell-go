@@ -88,6 +88,7 @@ func findExecutable(command string, paths []string) string {
 	return ""
 }
 
+// Populates trie structs with custom executamle command names
 func populateTrieCustomFiles(t *Trie) {
 	pathEnv := os.Getenv("PATH")
 	paths := strings.SplitSeq(pathEnv, ":")
@@ -106,4 +107,25 @@ func populateTrieCustomFiles(t *Trie) {
 			}
 		}
 	}
+}
+
+// longestCommonPrefix finds the longest common prefix string amongst a slice of strings.
+func longestCommonPrefix(strs []string) string {
+	// no LCP
+	if len(strs) == 0 {
+		return ""
+	}
+	// Use the first string as the reference.
+	for i := 0; i < len(strs[0]); i++ {
+		char := strs[0][i]
+		// Check this character against all other strings.
+		for j := 1; j < len(strs); j++ {
+			// If a string is shorter or the character doesn't match, we've found the LCP.
+			if i >= len(strs[j]) || strs[j][i] != char {
+				return strs[0][:i]
+			}
+		}
+	}
+	// If the loop completes, the entire first string is the common prefix.
+	return strs[0]
 }
