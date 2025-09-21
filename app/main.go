@@ -15,6 +15,7 @@ var cmdsMap = map[string]string{
 	"exit": "a shell builtin",
 	"pwd":  "a shell builtin",
 	"cd":   "a shell builtin",
+	"history": "a shell builtin",
 }
 
 var originalStdout *os.File
