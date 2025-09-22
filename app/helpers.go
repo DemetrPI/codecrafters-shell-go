@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// parseArgs splits a command line string into arguments, handling quotes and escapes.
 func parseArgs(input string) []string {
 	var (
 		args      []string
@@ -76,7 +77,7 @@ func parseArgs(input string) []string {
 	return args
 }
 
-// checks for executable command
+// findExecutable checks for an executable command in the given paths.
 func findExecutable(command string, paths []string) string {
 	for _, path := range paths {
 		fullPath := filepath.Join(path, command)
@@ -88,7 +89,7 @@ func findExecutable(command string, paths []string) string {
 	return ""
 }
 
-// Populates trie structs with custom executamle command names
+// populateTrieCustomFiles populates the Trie with executable file names from the system's PATH.
 func populateTrieCustomFiles(t *Trie) {
 	pathEnv := os.Getenv("PATH")
 	paths := strings.SplitSeq(pathEnv, ":")

@@ -11,15 +11,14 @@ type Node struct {
 	IsEndOfWord bool
 }
 
-// Trie  is our actual tree that will hold all of our nodes, root node will be nil
+// Trie represents a trie data structure for autocomplete.
 type Trie struct {
 	RootNode   *Node
-	lastPrefix string
-	tabCount   int
+	lastPrefix string // Stores the prefix from the last tab completion attempt.
+	tabCount   int    // Counts consecutive tab presses for the same prefix.
 }
 
-// / NewNode this will be used to initialize a new node with 26 children
-// /each child should first be initialized to nil
+// NewNode initializes a new Trie node.
 func NewNode() *Node {
 	node := &Node{
 		Children: make(map[string]*Node),
@@ -27,13 +26,13 @@ func NewNode() *Node {
 	return node
 }
 
-// NewTrie Creates a new trie with a root('constructor')
+// NewTrie creates and returns a new Trie.
 func NewTrie() *Trie {
 	root := NewNode()
 	return &Trie{RootNode: root}
 }
 
-// function inserts a word into the trie.
+// Insert adds a word to the trie.
 func (t *Trie) Insert(word string) {
 	current := t.RootNode
 	for _, r := range word {

@@ -7,18 +7,15 @@ import (
 	"strings"
 )
 
+// path stores the directories from the PATH environment variable.
 var path = strings.Split(os.Getenv("PATH"), ":")
 
+// echo implements the "echo" built-in command.
 func echo(args []string) {
-	output := ""
-	for index, element := range args {
-		if index > 0 {
-			output += element + " "
-		}
-	}
-	fmt.Println(output)
+	fmt.Println(strings.Join(args[1:], " "))
 }
 
+// pwd implements the "pwd" built-in command.
 func pwd() {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -28,8 +25,9 @@ func pwd() {
 	}
 }
 
+// cd implements the "cd" built-in command.
 func cd(args []string) {
-	if len(args) == 0 {
+	if len(args) < 2 {
 		fmt.Println("cd: not enough arguments")
 		return
 	}
@@ -50,9 +48,10 @@ func cd(args []string) {
 	}
 }
 
+// type_ implements the "type" built-in command.
 func type_(args []string) {
 
-	if len(args) > 0 {
+	if len(args) > 1 {
 		target := args[1]
 		if decs, ok := cmdsMap[target]; ok {
 			fmt.Printf("%s is %s\n", target, decs)
@@ -69,6 +68,7 @@ func type_(args []string) {
 	}
 }
 
+// default_ handles execution of external commands.
 func default_(args []string) {
 	_, err := exec.LookPath(args[0])
 	if err != nil {
@@ -80,4 +80,16 @@ func default_(args []string) {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 	_ = cmd.Run()
+}
+
+// storeHistory adds a line to the command history.
+func (h *History) storeHistory(input string) {
+	h.lines = append(h.lines, input)
+}
+
+// printHistory displays the command history with line numbers.
+func (h *History) printHistory() {
+	for i, line := range h.lines {
+		fmt.Printf("%d %s\n", i+1, line)
+	}
 }

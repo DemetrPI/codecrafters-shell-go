@@ -1,6 +1,6 @@
-module github.com/codecrafters-io/shell-starter-go
+module main
 
-go 1.24.0
+go 1.24
 
 require github.com/chzyer/readline v1.5.1
 
