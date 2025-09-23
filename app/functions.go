@@ -4,8 +4,28 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
+
+// History stores the history of commands entered in the shell.
+type History struct {
+	lines []string
+}
+
+// cmdsMap maps built-in command names to their descriptions.
+var cmdsMap = map[string]string{
+	"echo":    "a shell builtin",
+	"type":    "a shell builtin",
+	"exit":    "a shell builtin",
+	"pwd":     "a shell builtin",
+	"cd":      "a shell builtin",
+	"history": "a shell builtin",
+}
+
+// originalStdout and originalStderr store the original standard output and error streams.
+var originalStdout *os.File
+var originalStderr *os.File
 
 // path stores the directories from the PATH environment variable.
 var path = strings.Split(os.Getenv("PATH"), ":")
@@ -88,8 +108,31 @@ func (h *History) storeHistory(input string) {
 }
 
 // printHistory displays the command history with line numbers.
-func (h *History) printHistory() {
-	for i, line := range h.lines {
-		fmt.Printf("%d %s\n", i+1, line)
+func (h *History) printHistory(args []string) {
+	historyToShow := len(h.lines) // Default to showing all history entries
+	// If an argument is provided (e.g., "history 10"), try to parse it.
+	if len(args) > 1 {
+		num, err := strconv.Atoi(args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "history: %s: numeric argument required\n", args[1])
+			return
+		}
+		if num < 0 {
+			fmt.Fprintf(os.Stderr, "history: %s: history position out of range\n", args[1])
+			return
+		}
+		historyToShow = num
 	}
+	// Determine the starting point in the history slice.
+	start := max(len(h.lines)-historyToShow, 0)
+	// Print the relevant history entries.
+	for i := start; i < len(h.lines); i++ {
+		fmt.Printf("%d %s\n", i+1, h.lines[i])
+	}
+}
+
+// init saves the original stdout and stderr file descriptors to restore them after redirection.
+func init() {
+	originalStdout = os.Stdout
+	originalStderr = os.Stderr
 }

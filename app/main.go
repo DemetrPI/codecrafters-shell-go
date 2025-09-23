@@ -2,36 +2,11 @@ package main
 
 import (
 	"fmt"
+	"github.com/chzyer/readline"
 	"log"
 	"os"
 	"strings"
-	"github.com/chzyer/readline"
 )
-
-// History stores the history of commands entered in the shell.
-type History struct {
-	lines []string
-}
-
-// cmdsMap maps built-in command names to their descriptions.
-var cmdsMap = map[string]string{
-	"echo":    "a shell builtin",
-	"type":    "a shell builtin",
-	"exit":    "a shell builtin",
-	"pwd":     "a shell builtin",
-	"cd":      "a shell builtin",
-	"history": "a shell builtin",
-}
-
-// originalStdout and originalStderr store the original standard output and error streams.
-var originalStdout *os.File
-var originalStderr *os.File
-
-// init saves the original stdout and stderr file descriptors to restore them after redirection.
-func init() {
-	originalStdout = os.Stdout
-	originalStderr = os.Stderr
-}
 
 func main() {
 	// populating trie with built-ins...
@@ -72,32 +47,41 @@ func main() {
 		var cleanedArgs []string
 		var redirectError bool
 
-		// Parse args for redirection
+		// Iterate through all parsed arguments to find and handle redirection operators.
 		for i := 0; i < len(parsed); i++ {
 			arg := parsed[i]
 			isRedirect := true
 
 			var isAppend, isStderr bool
+			// Check if the current argument is a redirection operator.
 			switch arg {
 			case ">", "1>":
+				// Standard output redirection (overwrite).
 			case "2>":
+				// Standard error redirection (overwrite).
 				isStderr = true
 			case ">>", "1>>":
+				// Standard output redirection (append).
 				isAppend = true
 			case "2>>":
+				// Standard error redirection (append).
 				isAppend, isStderr = true, true
 			default:
+				// If the argument is not a redirection operator, it's part of the command itself.
 				isRedirect = false
 				cleanedArgs = append(cleanedArgs, arg)
 			}
 
+			// This block executes if a redirection operator was found.
 			if isRedirect {
+				// A redirection operator must be followed by a filename.
 				if i+1 >= len(parsed) {
 					fmt.Fprintln(originalStderr, "shell: syntax error near unexpected token `newline'")
 					redirectError = true
 					break
 				}
 				filename := parsed[i+1]
+				// Set the file opening flags based on whether we are appending or truncating.
 				flags := os.O_WRONLY | os.O_CREATE
 				if isAppend {
 					flags |= os.O_APPEND
@@ -112,15 +96,18 @@ func main() {
 					break
 				}
 
+				// Determine whether to redirect stdout or stderr.
 				targetFile := &outputFile
 				if isStderr {
 					targetFile = &errFile
 				}
+				// If a file is already open for this stream (e.g., `echo hi > a > b`), close the previous one.
 				if *targetFile != nil {
 					(*targetFile).Close()
 				}
 				*targetFile = f
-				i++ // Also skip the filename
+				// Increment the loop counter to skip the filename argument in the next iteration.
+				i++
 			}
 		}
 
@@ -161,7 +148,7 @@ func main() {
 		case "type":
 			type_(parsed)
 		case "history":
-			history.printHistory()
+			history.printHistory(parsed)
 		default:
 			default_(parsed)
 		}
