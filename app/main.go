@@ -2,16 +2,18 @@ package main
 
 import (
 	"fmt"
-	"github.com/chzyer/readline"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/chzyer/readline"
 )
 
 func main() {
+	// creating a History instance
+	history := &History{}
 	// populating trie with built-ins...
 	trie := NewTrie()
-	history := new(History)
 
 	for cmd := range cmdsMap {
 		trie.Insert(cmd)
