@@ -97,7 +97,7 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	switch len(completions) {
 	case 0:
 		// No matches: ring the bell.
-		fmt.Fprint(originalStdout, "\a")
+		fmt.Fprint(NewShell().originalStdout, "\a")
 		return nil, 0
 	case 1:
 		suggestions[0] = append(suggestions[0], ' ')
@@ -121,11 +121,11 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 
 		if t.tabCount > 1 {
 			// On second (or more) tab, show all options.
-			fmt.Fprintf(originalStdout, "\n%s\n", strings.Join(completions, "  "))
-			fmt.Fprintf(originalStdout, "$ %s", lineStr)
+			fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(completions, "  "))
+			fmt.Fprintf(NewShell().originalStdout, "$ %s", lineStr)
 		} else {
 			// On first tab, just beep.
-			fmt.Fprint(originalStdout, "\a")
+			fmt.Fprint(NewShell().originalStdout, "\a")
 		}
 		return nil, len(prefix)
 	}

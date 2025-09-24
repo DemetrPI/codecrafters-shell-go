@@ -24,9 +24,6 @@ var cmdsMap = map[string]string{
 	"history": "a shell builtin",
 }
 
-// originalStdout and originalStderr store the original standard output and error streams.
-var originalStdout *os.File
-
 // path stores the directories from the PATH environment variable.
 var path = strings.Split(os.Getenv("PATH"), ":")
 
@@ -139,6 +136,35 @@ func (h *History) printHistory(args []string) {
 		}
 		// Do not print history after reading from file
 		return
+	case "-w", "-a": // Handle both write and append
+		if len(args) < 3 {
+			fmt.Fprintf(os.Stderr, "history: %s: option requires an argument\n", args[1])
+			return
+		}
+		filename := args[2]
+
+		// Determine file opening flags based on the option
+		flags := os.O_WRONLY | os.O_CREATE
+		if args[1] == "-w" {
+			flags |= os.O_TRUNC // Overwrite for -w
+		} else { // -a
+			flags |= os.O_APPEND // Append for -a
+		}
+
+		file, err := os.OpenFile(filename, flags, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "history: %s: %v\n", filename, err)
+			return
+		}
+		defer file.Close()
+
+		// Write each history line to the file
+		writer := bufio.NewWriter(file)
+		for _, line := range h.lines {
+			fmt.Fprintln(writer, line)
+		}
+		writer.Flush() // Ensure all buffered content is written
+		return
 	default:
 		// Assume it's a numeric argument
 		num, err := strconv.Atoi(args[1])
@@ -160,9 +186,6 @@ func (h *History) printHistory(args []string) {
 }
 
 // init saves the original stdout file descriptors to restore them after redirection.
-func init() {
-	originalStdout = os.Stdout
-}
 
 func executeCommand(command string, cleanedArgs []string, history *History) {
 	switch command {
