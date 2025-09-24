@@ -105,8 +105,27 @@ func (h *History) storeHistory(input string) {
 	h.lines = append(h.lines, input)
 }
 
-// printHistory displays the command history with line numbers.
-func (h *History) printHistory(args []string) {
+// load reads the history from the file specified by the HISTFILE environment variable.
+func (h *History) load() {
+	histfilePath := os.Getenv("HISTFILE")
+	if histfilePath == "" {
+		return
+	}
+	data, err := os.ReadFile(histfilePath)
+	if err != nil {
+		return // Not an error if the file doesn't exist
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			h.storeHistory(line)
+		}
+	}
+	h.savedLinesLen = len(h.lines)
+}
+
+// handleHistoryCommand processes the `history` built-in command and its arguments.
+func (h *History) handleHistoryCommand(args []string) {
 	// If no arguments, print all history
 	if len(args) == 1 {
 		for i := 0; i < len(h.lines); i++ {
@@ -211,7 +230,7 @@ func executeCommand(command string, cleanedArgs []string, history *History) {
 	case "type":
 		type_(cleanedArgs)
 	case "history":
-		history.printHistory(cleanedArgs)
+		history.handleHistoryCommand(cleanedArgs)
 	default:
 		default_(cleanedArgs)
 	}

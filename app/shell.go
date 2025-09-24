@@ -38,8 +38,11 @@ func NewShell() *Shell {
 		log.Fatal(err)
 	}
 
+	history := &History{}
+	history.load()
+
 	s := &Shell{
-		history:        &History{},
+		history:        history,
 		trie:           trie,
 		line:           line,
 		originalStdout: os.Stdout,
