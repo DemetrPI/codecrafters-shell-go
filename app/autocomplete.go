@@ -98,7 +98,7 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	case 0:
 		// No matches: ring the bell.
 		fmt.Fprint(NewShell().originalStdout, "\a")
-		return nil, 0
+		return nil, len(prefix) // Return length of prefix to clear it
 	case 1:
 		suggestions[0] = append(suggestions[0], ' ')
 		return suggestions, len(prefix)

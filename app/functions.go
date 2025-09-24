@@ -26,7 +26,7 @@ var cmdsMap = map[string]string{
 }
 
 // path stores the directories from the PATH environment variable.
-var path = strings.Split(os.Getenv("PATH"), ":")
+var path = strings.Split(os.Getenv("PATH"), ":") // This is fine as PATH is usually set before shell starts
 
 // echo implements the "echo" built-in command.
 func echo(args []string) {
@@ -107,7 +107,7 @@ func (h *History) storeHistory(input string) {
 
 // load reads the history from the file specified by the HISTFILE environment variable.
 func (h *History) load() {
-	histfilePath := os.Getenv("HISTFILE")
+	histfilePath := os.Getenv("HISTFILE") // Get the latest value
 	if histfilePath == "" {
 		return
 	}
@@ -122,6 +122,34 @@ func (h *History) load() {
 		}
 	}
 	h.savedLinesLen = len(h.lines)
+}
+
+// save writes the history to the file specified by the HISTFILE environment variable.
+func (h *History) save() {
+	histfilePath := os.Getenv("HISTFILE") // Get the latest value
+	if histfilePath == "" {
+		return
+	}
+
+	// Open the file for writing, create if not exists, truncate if exists.
+	file, err := os.OpenFile(histfilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "history: error saving to %s: %v\n", histfilePath, err)
+		return
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	for _, line := range h.lines {
+		fmt.Fprintln(writer, line)
+	}
+	err = writer.Flush()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "history: error flushing buffer to %s: %v\n", histfilePath, err)
+		return
+	}
+
+	h.savedLinesLen = len(h.lines) // All lines are now saved
 }
 
 // handleHistoryCommand processes the `history` built-in command and its arguments.

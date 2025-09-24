@@ -198,4 +198,3 @@ func handleRedirections(parsed []string) (
 	}
 	return cleanedArgs, outputFile, errFile, nil
 }
-

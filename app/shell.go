@@ -86,6 +86,7 @@ func (s *Shell) Run() {
 			os.Stdout = outputFile
 		}
 		if command == "exit" && len(args) > 0 && args[0] == "0" {
+			s.history.save() // Save history before exiting
 			os.Exit(0)
 		}
 
