@@ -11,7 +11,8 @@ import (
 
 // History stores the history of commands entered in the shell.
 type History struct {
-	lines []string
+	lines         []string
+	savedLinesLen int
 }
 
 // cmdsMap maps built-in command names to their descriptions.
@@ -134,6 +135,8 @@ func (h *History) printHistory(args []string) {
 		for scanner.Scan() {
 			h.storeHistory(scanner.Text())
 		}
+		// After reading, all lines are considered "saved".
+		h.savedLinesLen = len(h.lines)
 		// Do not print history after reading from file
 		return
 	case "-w", "-a": // Handle both write and append
@@ -145,10 +148,15 @@ func (h *History) printHistory(args []string) {
 
 		// Determine file opening flags based on the option
 		flags := os.O_WRONLY | os.O_CREATE
+		var linesToWrite []string
+
 		if args[1] == "-w" {
 			flags |= os.O_TRUNC // Overwrite for -w
+			linesToWrite = h.lines
 		} else { // -a
 			flags |= os.O_APPEND // Append for -a
+			// Only write new lines for -a
+			linesToWrite = h.lines[h.savedLinesLen:]
 		}
 
 		file, err := os.OpenFile(filename, flags, 0644)
@@ -160,10 +168,15 @@ func (h *History) printHistory(args []string) {
 
 		// Write each history line to the file
 		writer := bufio.NewWriter(file)
-		for _, line := range h.lines {
+		for _, line := range linesToWrite {
 			fmt.Fprintln(writer, line)
 		}
-		writer.Flush() // Ensure all buffered content is written
+		err = writer.Flush() // Ensure all buffered content is written
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error writing buffer: %s\n", err)
+		}
+		// After writing, all lines are now considered "saved".
+		h.savedLinesLen = len(h.lines)
 		return
 	default:
 		// Assume it's a numeric argument
