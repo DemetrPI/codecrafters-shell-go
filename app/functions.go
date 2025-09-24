@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,7 +26,6 @@ var cmdsMap = map[string]string{
 
 // originalStdout and originalStderr store the original standard output and error streams.
 var originalStdout *os.File
-var originalStderr *os.File
 
 // path stores the directories from the PATH environment variable.
 var path = strings.Split(os.Getenv("PATH"), ":")
@@ -109,9 +109,38 @@ func (h *History) storeHistory(input string) {
 
 // printHistory displays the command history with line numbers.
 func (h *History) printHistory(args []string) {
-	historyToShow := len(h.lines) // Default to showing all history entries
-	// If an argument is provided (e.g., "history 10"), try to parse it.
-	if len(args) > 1 {
+	// If no arguments, print all history
+	if len(args) == 1 {
+		for i := 0; i < len(h.lines); i++ {
+			fmt.Printf("%d %s\n", i+1, h.lines[i])
+		}
+		return
+	}
+
+	// Handle arguments
+	switch args[1] {
+	case "-r":
+		// Expecting filename as args[2]
+		if len(args) < 3 {
+			fmt.Fprintln(os.Stderr, "history: -r: option requires an argument")
+			return
+		}
+		filename := args[2]
+		file, err := os.OpenFile(filename, os.O_RDONLY, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "history: %s: %v\n", filename, err)
+			return
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			h.storeHistory(scanner.Text())
+		}
+		// Do not print history after reading from file
+		return
+	default:
+		// Assume it's a numeric argument
 		num, err := strconv.Atoi(args[1])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "history: %s: numeric argument required\n", args[1])
@@ -121,18 +150,33 @@ func (h *History) printHistory(args []string) {
 			fmt.Fprintf(os.Stderr, "history: %s: history position out of range\n", args[1])
 			return
 		}
-		historyToShow = num
-	}
-	// Determine the starting point in the history slice.
-	start := max(len(h.lines)-historyToShow, 0)
-	// Print the relevant history entries.
-	for i := start; i < len(h.lines); i++ {
-		fmt.Printf("%d %s\n", i+1, h.lines[i])
+		historyToShow := num
+		start := max(len(h.lines)-historyToShow, 0)
+		for i := start; i < len(h.lines); i++ {
+			fmt.Printf("%d %s\n", i+1, h.lines[i])
+		}
+		return
 	}
 }
 
-// init saves the original stdout and stderr file descriptors to restore them after redirection.
+// init saves the original stdout file descriptors to restore them after redirection.
 func init() {
 	originalStdout = os.Stdout
-	originalStderr = os.Stderr
+}
+
+func executeCommand(command string, cleanedArgs []string, history *History) {
+	switch command {
+	case "echo":
+		echo(cleanedArgs)
+	case "pwd":
+		pwd()
+	case "cd":
+		cd(cleanedArgs)
+	case "type":
+		type_(cleanedArgs)
+	case "history":
+		history.printHistory(cleanedArgs)
+	default:
+		default_(cleanedArgs)
+	}
 }

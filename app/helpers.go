@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -130,3 +131,71 @@ func longestCommonPrefix(strs []string) string {
 	// If the loop completes, the entire first string is the common prefix.
 	return strs[0]
 }
+
+func handleRedirections(parsed []string) (
+	cleanedArgs []string,
+	outputFile *os.File,
+	errFile *os.File,
+	err error) {
+
+	// Iterate through all parsed arguments to find and handle redirection operators.
+	for i := 0; i < len(parsed); i++ {
+		arg := parsed[i]
+		isRedirect := true
+
+		var isAppend, isStderr bool
+		switch arg {
+		case ">", "1>":
+			// Standard output redirection (overwrite).
+		case "2>":
+			// Standard error redirection (overwrite).
+			isStderr = true
+		case ">>", "1>>":
+			// Standard output redirection (append).
+			isAppend = true
+		case "2>>":
+			// Standard error redirection (append).
+			isAppend, isStderr = true, true
+		default:
+			// If the argument is not a redirection operator, it's part of the command itself.
+			isRedirect = false
+			cleanedArgs = append(cleanedArgs, arg)
+		}
+
+		// This block executes if a redirection operator was found.
+		if isRedirect {
+			// A redirection operator must be followed by a filename.
+			if i+1 >= len(parsed) {
+				return nil, outputFile, errFile, fmt.Errorf("shell: syntax error near unexpected token `newline'")
+			}
+			filename := parsed[i+1]
+
+			flags := os.O_WRONLY | os.O_CREATE
+			if isAppend {
+				flags |= os.O_APPEND
+			} else {
+				flags |= os.O_TRUNC
+			}
+
+			f, ferr := os.OpenFile(filename, flags, 0644)
+			if ferr != nil {
+				return nil, outputFile, errFile, fmt.Errorf("error opening file: %v", ferr)
+			}
+
+			// Determine whether to redirect stdout or stderr.
+			targetFile := &outputFile
+			if isStderr {
+				targetFile = &errFile
+			}
+			// If a file is already open for this stream (e.g., `echo hi > a > b`), close the previous one.
+			if *targetFile != nil {
+				(*targetFile).Close()
+			}
+			*targetFile = f
+			// Increment the loop counter to skip the filename argument in the next iteration.
+			i++
+		}
+	}
+	return cleanedArgs, outputFile, errFile, nil
+}
+
