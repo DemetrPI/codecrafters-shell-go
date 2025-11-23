@@ -114,14 +114,11 @@ func (s *Shell) Run() {
 	}
 }
 
-// shell.go
-
 // executePipeline handles the execution of a series of commands linked by pipes.
 func (s *Shell) executePipeline(commandSegments []string) error {
-	// FIX 1: Change to io.Reader to accept pipe output (io.ReadCloser)
 	var inputPipe io.Reader = os.Stdin
 	var runningCommands []*exec.Cmd
-	var pipesToClose []io.Closer // FIX 3: Track pipes for cleanup
+	var pipesToClose []io.Closer
 
 	// Variables to hold the final command's redirection files for cleanup
 	var finalOutputFile *os.File
@@ -152,37 +149,68 @@ func (s *Shell) executePipeline(commandSegments []string) error {
 
 		// --- Built-in Check ---
 		if _, ok := cmdsMap[command]; ok {
+			var r *os.File
+			var w *os.File
+			var err error
+
+			// Save original stdout/stderr before redirection
+			oldStdout := os.Stdout
+			oldStderr := os.Stderr
+
+			// 1. Setup Output Pipe/Redirection
 			if !isLastCommand {
-				// Built-ins cannot be used in the middle of a pipe chain (simplification)
+				// Not the last command: built-in output must go to a new pipe
+				// Create a pipe for the built-in's output to be consumed by the next command
+				r, w, err = os.Pipe()
+				if err != nil {
+					return fmt.Errorf("shell: pipe error: %v", err)
+				}
+				os.Stdout = w // Built-in output goes to the pipe's write end
+
+				// We track the read end for closing and set it as the next input
+				pipesToClose = append(pipesToClose, r)
+				inputPipe = r // Input for the next command
+			} else {
+				// Last command: built-in output goes to specified file or original stdout
 				if outputFile != nil {
-					outputFile.Close()
+					os.Stdout = outputFile
+					finalOutputFile = outputFile // Track for final cleanup
+				} else {
+					os.Stdout = s.originalStdout
 				}
-				if errFile != nil {
-					errFile.Close()
-				}
-				return fmt.Errorf("shell: built-in command '%s' cannot be used in a pipeline", command)
 			}
 
-			// Built-in as the last command (allows redirection)
+			// 2. Setup Stderr Redirection
 			if errFile != nil {
 				os.Stderr = errFile
-			}
-			if outputFile != nil {
-				os.Stdout = outputFile
-			}
-
-			executeCommand(command, cleanedArgs, s.history)
-
-			// Restore stdout/stderr after built-in execution
-			if errFile != nil {
-				errFile.Close()
+				if isLastCommand {
+					finalErrFile = errFile // Track for final cleanup
+				}
+			} else {
 				os.Stderr = s.originalStderr
 			}
-			if outputFile != nil {
-				outputFile.Close()
-				os.Stdout = s.originalStdout
+
+			// 3. Execution: executeCommand uses the currently set os.Stdout/os.Stderr.
+			// Note: For 'echo' and 'type', we don't need to explicitly read from 'inputPipe'.
+			executeCommand(command, cleanedArgs, s.history)
+
+			// 4. Cleanup
+			// Close the write end of the pipe immediately if one was created
+			if w != nil {
+				w.Close()
 			}
-			return nil
+
+			// Restore original stdout/stderr
+			os.Stdout = oldStdout
+			os.Stderr = oldStderr
+
+			// For non-last commands, we need to close any redirection files opened
+			// by handleRedirections, as their output went to a pipe instead.
+			if !isLastCommand {
+				s.restoreStdio(outputFile, errFile) // This closes files if they were opened
+			}
+
+			continue // Move to the next command in the pipeline
 		}
 
 		// --- External Command Execution Setup ---
@@ -261,6 +289,7 @@ func (s *Shell) executePipeline(commandSegments []string) error {
 		}
 	}
 
+	// s.restoreStdio is called here to close the final output/error files if they were opened.
 	s.restoreStdio(finalOutputFile, finalErrFile)
 
 	return nil
