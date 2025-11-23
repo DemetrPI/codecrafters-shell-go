@@ -64,6 +64,7 @@ func parseArgs(input string) []string {
 			} else {
 				current.WriteRune(' ') // It's a literal space
 			}
+
 		// Any other character is part of the argument.
 		default:
 			current.WriteRune(char)
@@ -197,4 +198,52 @@ func handleRedirections(parsed []string) (
 		}
 	}
 	return cleanedArgs, outputFile, errFile, nil
+}
+
+// splitCommandsByPipe splits the raw input string into separate command strings
+// based on the pipe operator (|), ignoring pipes inside quotes or escaped.
+func splitCommandsByPipe(input string) []string {
+	var commands []string
+	var current strings.Builder
+	var quoteChar rune // 0, '\'', or '"'
+	escaped := false
+
+	for _, char := range input {
+		if escaped {
+			escaped = false
+			current.WriteRune(char)
+			continue
+		}
+
+		switch char {
+		case '\\':
+			escaped = true
+		case '\'', '"':
+			switch quoteChar {
+			case 0:
+				quoteChar = char
+			case char:
+				quoteChar = 0
+			}
+			current.WriteRune(char)
+		case '|':
+			if quoteChar == 0 {
+				// Pipe found outside of quotes. Finalize the current command.
+				commands = append(commands, strings.TrimSpace(current.String()))
+				current.Reset()
+			} else {
+				// Pipe inside quotes, treat as literal character.
+				current.WriteRune(char)
+			}
+		default:
+			current.WriteRune(char)
+		}
+	}
+	// Add the last command segment
+	finalCommand := strings.TrimSpace(current.String())
+	if finalCommand != "" {
+		commands = append(commands, finalCommand)
+	}
+
+	return commands
 }

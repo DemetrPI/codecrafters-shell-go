@@ -25,8 +25,7 @@ var cmdsMap = map[string]string{
 	"history": "a shell builtin",
 }
 
-// path stores the directories from the PATH environment variable.
-var path = strings.Split(os.Getenv("PATH"), ":") // This is fine as PATH is usually set before shell starts
+var path = strings.Split(os.Getenv("PATH"), ":")
 
 // echo implements the "echo" built-in command.
 func echo(args []string) {
@@ -84,6 +83,19 @@ func type_(args []string) {
 	} else {
 		fmt.Println("type: not enough arguments")
 	}
+}
+
+func exit_(args []string, h *History) {
+	h.save()
+	if len(args) > 1 {
+		code, err := strconv.Atoi(args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "exit: %s: numeric argument required\n", args[1])
+			return
+		}
+		os.Exit(code)
+	}
+	os.Exit(0)
 }
 
 // default_ handles execution of external commands.
@@ -259,6 +271,8 @@ func executeCommand(command string, cleanedArgs []string, history *History) {
 		type_(cleanedArgs)
 	case "history":
 		history.handleHistoryCommand(cleanedArgs)
+	case "exit":
+		exit_(cleanedArgs, history)
 	default:
 		default_(cleanedArgs)
 	}
