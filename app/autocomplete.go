@@ -177,6 +177,18 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 				suggestions[0] = append(suggestions[0], ' ')
 				return suggestions, len(prefix)
 			}
+		default:
+			commonPrefix := longestCommonPrefix(fileCompletions)
+			if len(commonPrefix) > len(prefix) {
+				// If the LCP is longer than the current prefix, complete to the LCP.
+				t.lastPrefix = "" // Reset prefix state
+				t.tabCount = 0    // Reset tab state
+				suggestions = make([][]rune, len(fileCompletions))
+				for i, comp := range fileCompletions {
+					suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
+				}
+				return suggestions, len(prefix)
+			}
 		}
 		// Multiple matches: build suffix suggestions for the multi-tab display
 		for i, comp := range fileCompletions {
@@ -214,7 +226,7 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		} else {
 			allCompletions = displayNames
 		}
-		fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(allCompletions, "  "))
+		fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(allCompletions, " "))
 		fmt.Fprintf(NewShell().originalStdout, "$ %s", lineStr)
 	} else {
 		// First tab with multiple matches: just beep
