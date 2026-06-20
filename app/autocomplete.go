@@ -119,14 +119,17 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		}
 	} else {
 		var dir, filePrefix string
-		if strings.HasSuffix(prefix, "/") {
-			dir = strings.TrimPrefix(prefix, "/")
+		if before, ok :=strings.CutSuffix(prefix, "/"); ok  {
+			dir = before
 			filePrefix = ""
 		} else {
 			dir = filepath.Dir(prefix)
 			filePrefix = filepath.Base(prefix)
+			if filePrefix == "." {
+				filePrefix = ""
+			}
 		}
-		
+
 		files, err := os.ReadDir(dir)
 		if err != nil {
 			fmt.Fprint(NewShell().originalStdout, "\a")
@@ -146,9 +149,16 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 			fmt.Fprint(NewShell().originalStdout, "\a")
 			return nil, len(prefix)
 		case 1:
-			suggestions[0] = []rune(strings.TrimPrefix(fileCompletions[0], prefix))
-			suggestions[0] = append(suggestions[0], ' ')
-			return suggestions, len(prefix)
+			info, err := os.Stat(fileCompletions[0])
+			if err == nil && info.IsDir() {
+				suggestions[0] = []rune(strings.TrimPrefix(fileCompletions[0], prefix))
+				suggestions[0] = append(suggestions[0], '/')
+				return suggestions, len(prefix)
+			} else {
+				suggestions[0] = []rune(strings.TrimPrefix(fileCompletions[0], prefix))
+				suggestions[0] = append(suggestions[0], ' ')
+				return suggestions, len(prefix)
+			}
 		}
 		for i, comp := range fileCompletions {
 			suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
