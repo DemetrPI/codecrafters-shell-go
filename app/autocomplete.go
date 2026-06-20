@@ -198,12 +198,21 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	t.tabCount++
 
 	if t.tabCount > 1 {
+		displayNames := make([]string, len(fileCompletions))
+		for i, path := range fileCompletions {
+			info, err := os.Stat(path)
+			if err == nil && info.IsDir() {
+				displayNames[i] = path + "/"
+			} else {
+				displayNames[i] = path
+			}
+		}
 		// Second (or more) tab: print all matching options
 		var allCompletions []string
 		if isFirstWord {
 			allCompletions = completions
 		} else {
-			allCompletions = fileCompletions
+			allCompletions = displayNames
 		}
 		fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(allCompletions, "  "))
 		fmt.Fprintf(NewShell().originalStdout, "$ %s", lineStr)
