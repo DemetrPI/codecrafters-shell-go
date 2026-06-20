@@ -118,8 +118,15 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 			}
 		}
 	} else {
-		dir := filepath.Dir(prefix)
-		filePrefix := filepath.Base(prefix)
+		var dir, filePrefix string
+		if strings.HasSuffix(prefix, "/") {
+			dir = strings.TrimPrefix(prefix, "/")
+			filePrefix = ""
+		} else {
+			dir = filepath.Dir(prefix)
+			filePrefix = filepath.Base(prefix)
+		}
+		
 		files, err := os.ReadDir(dir)
 		if err != nil {
 			fmt.Fprint(NewShell().originalStdout, "\a")
