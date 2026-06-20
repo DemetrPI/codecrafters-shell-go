@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -85,48 +87,91 @@ func (t *Trie) FindCompletions(prefix string) []string {
 // Do implements the chzyer/readline.AutoCompleter interface.
 func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	lineStr := string(line[:pos])
+	var fileCompletions []string
 	lastSpace := strings.LastIndex(lineStr, " ")
 	prefix := lineStr[lastSpace+1:]
 	completions := t.FindCompletions(prefix)
 	suggestions := make([][]rune, len(completions))
+	isFirstWord := lastSpace == -1
 
 	for i, comp := range completions {
 		suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
 	}
 
-	switch len(completions) {
-	case 0:
-		// No matches: ring the bell.
-		fmt.Fprint(NewShell().originalStdout, "\a")
-		return nil, len(prefix) // Return length of prefix to clear it
-	case 1:
-		suggestions[0] = append(suggestions[0], ' ')
-		return suggestions, len(prefix)
-	default:
-		// Multi-match: use longest common prefix
-		commonPrefix := longestCommonPrefix(completions)
-		// If LCP is longer than current prefix, complete to LCP.
-		if len(commonPrefix) > len(prefix) {
-			t.lastPrefix = "" // Reset prefix state
-			t.tabCount = 0    // Reset tab state
+	if isFirstWord {
+		switch len(completions) {
+		case 0:
+			// No matches: ring the bell.
+			fmt.Fprint(NewShell().originalStdout, "\a")
+			return nil, len(prefix) // Return length of prefix to clear it
+		case 1:
+			suggestions[0] = append(suggestions[0], ' ')
+			return suggestions, len(prefix)
+		default:
+			// Multi-match: use longest common prefix
+			commonPrefix := longestCommonPrefix(completions)
+			// If LCP is longer than current prefix, complete to LCP.
+			if len(commonPrefix) > len(prefix) {
+				t.lastPrefix = "" // Reset prefix state
+				t.tabCount = 0    // Reset tab state
+				return suggestions, len(prefix)
+			}
+		}
+	} else {
+		dir := filepath.Dir(prefix)
+		filePrefix := filepath.Base(prefix)
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			fmt.Fprint(NewShell().originalStdout, "\a")
+			return nil, len(prefix)
+		}
+
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), filePrefix) {
+				fullPath := filepath.Join(dir, file.Name())
+				fileCompletions = append(fileCompletions, fullPath)
+			}
+		}
+		sort.Strings(fileCompletions)
+		suggestions = make([][]rune, len(fileCompletions))
+		switch len(fileCompletions) {
+		case 0:
+			fmt.Fprint(NewShell().originalStdout, "\a")
+			return nil, len(prefix)
+		case 1:
+			suggestions[0] = []rune(strings.TrimPrefix(fileCompletions[0], prefix))
+			suggestions[0] = append(suggestions[0], ' ')
 			return suggestions, len(prefix)
 		}
-
-		// Prefix is already the LCP. Handle multi-tab case.
-		if t.lastPrefix != prefix {
-			t.lastPrefix = prefix
-			t.tabCount = 0
+		for i, comp := range fileCompletions {
+			suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
 		}
-		t.tabCount++
-
-		if t.tabCount > 1 {
-			// On second (or more) tab, show all options.
-			fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(completions, "  "))
-			fmt.Fprintf(NewShell().originalStdout, "$ %s", lineStr)
-		} else {
-			// On first tab, just beep.
+		if len(suggestions) == 0 {
 			fmt.Fprint(NewShell().originalStdout, "\a")
+			return nil, len(prefix)
 		}
-		return nil, len(prefix)
 	}
+
+	// Prefix is already the LCP. Handle multi-tab case.
+	if t.lastPrefix != prefix {
+		t.lastPrefix = prefix
+		t.tabCount = 0
+	}
+	t.tabCount++
+
+	if t.tabCount > 1 {
+		// On second (or more) tab, show all options.
+		var allCompletions []string
+		if isFirstWord {
+			allCompletions = completions
+		} else {
+			allCompletions = fileCompletions
+		}
+		fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(allCompletions, "  "))
+		fmt.Fprintf(NewShell().originalStdout, "$ %s", lineStr)
+	} else {
+		// On first tab, just beep.
+		fmt.Fprint(NewShell().originalStdout, "\a")
+	}
+	return nil, len(prefix)
 }
