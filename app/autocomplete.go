@@ -8,9 +8,11 @@ import (
 	"strings"
 )
 
+// Node is a single node in the trie.
+// Each node maps a character to the next node in the path.
 type Node struct {
 	Children    map[string]*Node
-	IsEndOfWord bool
+	IsEndOfWord bool // true if this node marks the end of a complete word
 }
 
 // Trie represents a trie data structure for autocomplete.
@@ -85,30 +87,38 @@ func (t *Trie) FindCompletions(prefix string) []string {
 }
 
 // Do implements the chzyer/readline.AutoCompleter interface.
+// It is called automatically by the readline library when the user presses Tab.
+// It returns a list of completion suffixes and the length of the prefix to replace.
 func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	lineStr := string(line[:pos])
 	var fileCompletions []string
 	lastSpace := strings.LastIndex(lineStr, " ")
+	// prefix is the current word being typed (after the last space)
 	prefix := lineStr[lastSpace+1:]
+	// Look up command completions from the trie
 	completions := t.FindCompletions(prefix)
 	suggestions := make([][]rune, len(completions))
+	// If there's no space yet, the user is still typing the command name
 	isFirstWord := lastSpace == -1
 
+	// Pre-compute suffix suggestions for command completions (strip the already-typed prefix)
 	for i, comp := range completions {
 		suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
 	}
 
 	if isFirstWord {
+		// --- Command completion (first word on the line) ---
 		switch len(completions) {
 		case 0:
 			// No matches: ring the bell.
 			fmt.Fprint(NewShell().originalStdout, "\a")
 			return nil, len(prefix) // Return length of prefix to clear it
 		case 1:
+			// Unique match: complete and add a trailing space
 			suggestions[0] = append(suggestions[0], ' ')
 			return suggestions, len(prefix)
 		default:
-			// Multi-match: use longest common prefix
+			// Multiple matches: complete up to the longest common prefix (LCP)
 			commonPrefix := longestCommonPrefix(completions)
 			// If LCP is longer than current prefix, complete to LCP.
 			if len(commonPrefix) > len(prefix) {
@@ -118,14 +128,18 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 			}
 		}
 	} else {
+		// --- Filename/directory completion (arguments after the command) ---
 		var dir, filePrefix string
-		if before, ok :=strings.CutSuffix(prefix, "/"); ok  {
+		if before, ok := strings.CutSuffix(prefix, "/"); ok {
+			// Prefix ends with "/": user wants to list contents of that directory
 			dir = before
 			filePrefix = ""
 		} else {
+			// Split into the directory to search and the partial filename to match
 			dir = filepath.Dir(prefix)
 			filePrefix = filepath.Base(prefix)
 			if filePrefix == "." {
+				// filepath.Base returns "." for empty prefix — treat as match-all
 				filePrefix = ""
 			}
 		}
@@ -136,8 +150,10 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 			return nil, len(prefix)
 		}
 
+		// Collect all entries whose name starts with filePrefix
 		for _, file := range files {
 			if strings.HasPrefix(file.Name(), filePrefix) {
+				// Store the full relative path so we can trim the prefix correctly later
 				fullPath := filepath.Join(dir, file.Name())
 				fileCompletions = append(fileCompletions, fullPath)
 			}
@@ -146,9 +162,11 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		suggestions = make([][]rune, len(fileCompletions))
 		switch len(fileCompletions) {
 		case 0:
+			// No file matches: ring the bell
 			fmt.Fprint(NewShell().originalStdout, "\a")
 			return nil, len(prefix)
 		case 1:
+			// Unique match: append "/" for directories, space for files
 			info, err := os.Stat(fileCompletions[0])
 			if err == nil && info.IsDir() {
 				suggestions[0] = []rune(strings.TrimPrefix(fileCompletions[0], prefix))
@@ -160,6 +178,7 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 				return suggestions, len(prefix)
 			}
 		}
+		// Multiple matches: build suffix suggestions for the multi-tab display
 		for i, comp := range fileCompletions {
 			suggestions[i] = []rune(strings.TrimPrefix(comp, prefix))
 		}
@@ -169,15 +188,17 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		}
 	}
 
-	// Prefix is already the LCP. Handle multi-tab case.
+	// At this point we have multiple matches and the prefix is already the LCP.
+	// Track consecutive tab presses to decide whether to beep or show all options.
 	if t.lastPrefix != prefix {
+		// New prefix: reset the tab counter
 		t.lastPrefix = prefix
 		t.tabCount = 0
 	}
 	t.tabCount++
 
 	if t.tabCount > 1 {
-		// On second (or more) tab, show all options.
+		// Second (or more) tab: print all matching options
 		var allCompletions []string
 		if isFirstWord {
 			allCompletions = completions
@@ -187,7 +208,7 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		fmt.Fprintf(NewShell().originalStdout, "\n%s\n", strings.Join(allCompletions, "  "))
 		fmt.Fprintf(NewShell().originalStdout, "$ %s", lineStr)
 	} else {
-		// On first tab, just beep.
+		// First tab with multiple matches: just beep
 		fmt.Fprint(NewShell().originalStdout, "\a")
 	}
 	return nil, len(prefix)
