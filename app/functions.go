@@ -23,6 +23,7 @@ var cmdsMap = map[string]string{
 	"pwd":     "a shell builtin",
 	"cd":      "a shell builtin",
 	"history": "a shell builtin",
+	"jobs":    "a shell builtin",
 }
 
 var path = strings.Split(os.Getenv("PATH"), ":")
@@ -30,6 +31,11 @@ var path = strings.Split(os.Getenv("PATH"), ":")
 // echo implements the "echo" built-in command.
 func echo(args []string) {
 	fmt.Println(strings.Join(args[1:], " "))
+}
+
+//jobs implements the "jobs" built-in command.
+func jobs() {
+	fmt.Println("")
 }
 
 // pwd implements the "pwd" built-in command.
@@ -273,6 +279,8 @@ func executeCommand(command string, cleanedArgs []string, history *History) {
 		history.handleHistoryCommand(cleanedArgs)
 	case "exit":
 		exit_(cleanedArgs, history)
+	case "jobs":
+		
 	default:
 		default_(cleanedArgs)
 	}
