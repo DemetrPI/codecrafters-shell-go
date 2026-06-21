@@ -57,7 +57,6 @@ func (t *Trie) findAllWords(node *Node, prefix string, words *[]string) {
 	if node.IsEndOfWord {
 		*words = append(*words, prefix)
 	}
-	// To ensure alphabetical order, we must iterate over the children in a sorted manner.
 	keys := make([]string, 0, len(node.Children))
 	for char := range node.Children {
 		keys = append(keys, char)
@@ -107,12 +106,11 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 	}
 
 	if isFirstWord {
-		// --- Command completion (first word on the line) ---
 		switch len(completions) {
 		case 0:
 			// No matches: ring the bell.
 			fmt.Fprint(NewShell().originalStdout, "\a")
-			return nil, len(prefix) // Return length of prefix to clear it
+			return nil, len(prefix)
 		case 1:
 			// Unique match: complete and add a trailing space
 			suggestions[0] = append(suggestions[0], ' ')
@@ -200,7 +198,6 @@ func (t *Trie) Do(line []rune, pos int) (newLine [][]rune, length int) {
 		}
 	}
 
-	// At this point we have multiple matches and the prefix is already the LCP.
 	// Track consecutive tab presses to decide whether to beep or show all options.
 	if t.lastPrefix != prefix {
 		// New prefix: reset the tab counter
